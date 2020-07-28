@@ -148,8 +148,6 @@ BOOL WriteFile_DEBUG(
 	);
 }
 
-
-
 BOOL DeleteFileZero(LPCTSTR lpFileName)
 {
 	HANDLE hFile;
