@@ -29,5 +29,7 @@ INT _tmain(INT argc, LPCTSTR argv[])
 	else {
 		DEBUG("Usage: %s hexdump FILENAME\n", argv[0]);
 	}
+
+	system("pause");
 	return 0;
 }
