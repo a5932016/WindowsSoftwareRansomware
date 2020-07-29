@@ -6,3 +6,7 @@
 #else
 #define DEBUG(...) (0)
 #endif
+
+#ifndef FAKEDELETESUFFIX
+#define FAKEDELETESUFFIX _T(".wanabak")
+#endif // ! FAKEDELETESUFFIX

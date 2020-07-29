@@ -1,2 +1,4 @@
 ﻿  ReadBuffer.cpp
+E:\source\3.C\Windows駭客程式設計 勒索病毒加密篇\Chapter4\ReadBuffer\ReadBuffer\ReadBuffer.cpp(254,3): warning C4474: 'wprintf': 傳遞給格式字串的引數太多
+E:\source\3.C\Windows駭客程式設計 勒索病毒加密篇\Chapter4\ReadBuffer\ReadBuffer\ReadBuffer.cpp(254,3): message : 預留位置及其參數需要 0 個 variadic 引數，但卻提供了 2 個
   ReadBuffer.vcxproj -> E:\source\3.C\Windows駭客程式設計 勒索病毒加密篇\Chapter4\ReadBuffer\Debug\ReadBuffer.exe

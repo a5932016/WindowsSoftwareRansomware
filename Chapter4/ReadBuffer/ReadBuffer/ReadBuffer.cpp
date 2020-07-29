@@ -4,6 +4,8 @@
 
 #define HEXDUMP_BUFSIZE 1024
 
+BOOL GetFilePointerEx(HANDLE, PLARGE_INTEGER);
+
 ULONG hexdump(PUCHAR data, ULONG size)
 {
 	ULONG nResult = 0;
@@ -185,15 +187,166 @@ Error_Exit:
 	return bResult;
 }
 
+BOOL DeleteFileZero(LPCTSTR lpFileName)
+{
+	HANDLE hFile;
+	BOOL bResult = TRUE;
+	BOOL bGetSize = TRUE;
+	DWORD cbBuffer;
+	PUCHAR abBuffer[4096];
+	LARGE_INTEGER FileSize;
+
+	hFile = CreateFile(
+		lpFileName,
+		GENERIC_WRITE,
+		FILE_SHARE_READ,
+		NULL,
+		CREATE_ALWAYS,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL);
+	if(hFile == INVALID_HANDLE_VALUE)
+	{
+		DEBUG("Open file &s error &d", lpFileName, GetLastError());
+		goto Error_Exit;
+	}
+	
+	bGetSize = GetFileSizeEx(hFile, &FileSize);
+	if (!bGetSize)
+	{
+		CloseHandle(hFile);
+		return FALSE;
+	}
+
+	ZeroMemory(abBuffer, sizeof(abBuffer));
+
+	for (LONGLONG p = 0; p < FileSize.QuadPart; p += sizeof(abBuffer))
+	{
+		cbBuffer = (DWORD)(p < sizeof(abBuffer) ? p : sizeof(abBuffer));
+		bResult = WriteFile(
+			hFile,
+			abBuffer,
+			cbBuffer,
+			NULL,
+			0);
+		if (!bResult)
+		{
+			DEBUG("Write %s error\n", lpFileName);
+			break;
+		}
+	}
+
+	CloseHandle(hFile);
+Error_Exit:
+	DeleteFile(lpFileName);
+	return TRUE;
+}
+
+BOOL UpdateFileAttributes(
+	LPCTSTR lpFileName,
+	DWORD dwFileAttributes,
+	BOOL bFlag)
+{
+	BOOL bResult = TRUE;
+	DWORD dwAttrs = GetFileAttributes(lpFileName);
+
+	if (dwAttrs == INVALID_FILE_ATTRIBUTES)
+		return FALSE;
+
+	if (bFlag)
+	{
+		if (!(dwAttrs & dwFileAttributes))
+		{
+			bResult = SetFileAttributes(lpFileName, dwAttrs | dwFileAttributes);
+		}
+	}
+	else
+	{
+		if (dwAttrs & dwFileAttributes)
+		{
+			DWORD dwNewAttrs = dwAttrs & ~dwFileAttributes;
+			bResult = SetFileAttributes(lpFileName, dwNewAttrs);
+		}
+	}
+
+	return bResult;
+}
+
+BOOL FakeDeleteFile(LPCTSTR lpFileName)
+{
+	TCHAR newFileName[MAX_PATH];
+	LPCTSTR suffix;
+	BOOL bResult = FALSE;
+
+	suffix = _tcsrchr(lpFileName, _T('.'));
+	if (suffix)
+	{
+		if (!_tcsnicmp(suffix + 1, FAKEDELETESUFFIX, 8))
+		{
+			return TRUE;
+		}
+	}
+
+	_stprintf_s(newFileName, _T("%s%s"), lpFileName, FAKEDELETESUFFIX);
+	bResult = MoveFileEx(lpFileName, newFileName, MOVEFILE_REPLACE_EXISTING);
+	if (bResult)
+	{
+		bResult = UpdateFileAttributes(newFileName, FILE_ATTRIBUTE_HIDDEN, TRUE);
+	}
+
+	return bResult;
+}
+
+BOOL FakeUndeleteFile(LPCTSTR lpFileName)
+{
+	TCHAR newFileName[MAX_PATH];
+	TCHAR* suffix;
+	BOOL bResult = FALSE;
+
+	_tcscpy_s(newFileName, lpFileName);
+
+	suffix = _tcsrchr(newFileName, _T('.'));
+	if (!suffix)
+		return TRUE;
+
+	if (!_tcsnicmp(suffix, FAKEDELETESUFFIX, 8))
+	{
+		*suffix = 0;
+		bResult = MoveFile(lpFileName, newFileName);
+	}
+
+	if (bResult)
+	{
+		bResult = UpdateFileAttributes(newFileName, FILE_ATTRIBUTE_HIDDEN, FALSE);
+	}
+
+	return bResult;
+}
+
+BOOL GetFilePointerEx(
+	HANDLE hFile,
+	PLARGE_INTEGER lpNewFilePointer)
+{
+	LARGE_INTEGER liDistanceToMove = { 0 };
+	return SetFilePointerEx(
+		hFile,
+		liDistanceToMove,
+		lpNewFilePointer,
+		FILE_CURRENT);
+}
+
 INT _tmain(INT argc, LPCTSTR argv[])
 {
+	//FakeDeleteFile(_T("C:\\TEMP\\test.txt.wanabak"));
+	//FakeUndeleteFile(_T("C:\\TEMP\\test.txt.wanabak"));
+	//DeleteFileZero(_T("C:\\TEMP\\test.txt"));
+
 	if (argc > 2) {
 		if (!_tcsicmp(argv[1], _T("hexdump"))) {
 			UCHAR abBuffer[HEXDUMP_BUFSIZE];
 			ULONG cbBuffer;
 			ReadBuffer(argv[2], { 0 }, 0, abBuffer, sizeof(abBuffer), &cbBuffer);
 			cbBuffer = hexdump(abBuffer, cbBuffer);
-			WriteBuffer(_T("C:\\TEMP\\test2.txt"), { 0 }, 0, abBuffer, sizeof(abBuffer), &cbBuffer);
+			WriteBuffer(_T("C:\\TEMP\\test.txt"), { 0 }, 0, abBuffer, sizeof(abBuffer), &cbBuffer);
 			return TRUE;
 		}
 	}
@@ -201,6 +354,5 @@ INT _tmain(INT argc, LPCTSTR argv[])
 		DEBUG("Usage: %s hexdump FILENAME\n", argv[0]);
 	}
 
-	system("pause");
 	return 0;
 }
